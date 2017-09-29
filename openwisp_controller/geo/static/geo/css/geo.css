@@ -1,0 +1,8 @@
+.coords, .coords .form-row{ display: none }
+.coords .field-location_selection{ display: block }
+.coords input[type=text]{ width: 320px }
+/* simulate required fields */
+.coords.geo label{
+    font-weight: bold;
+    color: #333;
+}

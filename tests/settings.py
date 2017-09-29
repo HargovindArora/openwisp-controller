@@ -8,7 +8,7 @@ ALLOWED_HOSTS = []
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.spatialite',
         'NAME': 'openwisp-controller.db',
     }
 }
@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     # openwisp2 admin theme
     # (must be loaded here)
     'openwisp_utils.admin_theme',
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     'openwisp_users',
     'openwisp_controller.pki',
     'openwisp_controller.config',
+    'openwisp_controller.geo',
     # admin
     'django.contrib.admin',
     # other dependencies
@@ -70,6 +72,8 @@ USE_TZ = True
 USE_I18N = False
 USE_L10N = False
 STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = '{0}/media/'.format(BASE_DIR)
 
 TEMPLATES = [
     {
@@ -94,6 +98,17 @@ TEMPLATES = [
 EMAIL_PORT = '1025'  # for testing purposes
 LOGIN_REDIRECT_URL = 'admin:index'
 ACCOUNT_LOGOUT_REDIRECT_URL = LOGIN_REDIRECT_URL
+
+
+LEAFLET_CONFIG = {
+    'DEFAULT_CENTER': (42.06775, 12.62011),
+    'DEFAULT_ZOOM': 6,
+    'TILES': [
+        ('Mapbox', 'https://a.tiles.mapbox.com/v3/cineca.iea739oo/{z}/{x}/{y}.png', 'mapbox'),
+        ('OSM', 'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors | Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> &nbsp;<img src="https://developer.mapquest.com/content/osm/mq_logo.png">'),
+        ('Satellite', '//server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', '&copy; Source: <a href="http://www.esri.com/">Esri</a> and the GIS User Community ')
+    ]
+}
 
 # local settings must be imported before test runner otherwise they'll be ignored
 try:
