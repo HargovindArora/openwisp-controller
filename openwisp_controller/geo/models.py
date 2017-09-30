@@ -1,11 +1,9 @@
-import uuid
-
 from django.contrib.gis.db import models
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 
-from openwisp_utils.base import TimeStampedEditableModel
 from openwisp_users.mixins import OrgMixin
+from openwisp_utils.base import TimeStampedEditableModel
 
 
 # TODO: is shareable good?

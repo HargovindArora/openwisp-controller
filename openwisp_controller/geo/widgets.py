@@ -1,7 +1,5 @@
 from django import forms
-from django.contrib.admin.templatetags.admin_static import static
 from django.utils.html import mark_safe
-
 from leaflet.forms.widgets import LeafletWidget as BaseLeafletWidget
 
 
@@ -13,7 +11,8 @@ class ImageWidget(forms.FileInput):
         output = [super(ImageWidget, self).render(name, value, attrs)]
         if value and hasattr(value, 'url'):
             output.append(('<br/><br/><a rel="facebox" target="_blank" href="%s">'
-                           '<img style="width:300px;margin-left: 170px;" class="floorplan" src="%s" /></a><br/>'
+                           '<img style="width:300px;margin-left: 170px;" '
+                           'class="floorplan" src="%s" /></a><br/>'
                            % (value.url, value.url)))
         return mark_safe(u''.join(output))
 

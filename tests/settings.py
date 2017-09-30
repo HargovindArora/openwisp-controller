@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # other dependencies
     'sortedm2m',
     'reversion',
+    'leaflet',
 ]
 
 EXTENDED_APPS = ('django_netjsonconfig', 'django_x509')

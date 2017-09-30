@@ -1,23 +1,44 @@
-from django.contrib import admin
+import json
+
 from django import forms
-from django.contrib.gis.forms.fields import GeometryField
+from django.conf.urls import url
+from django.contrib import admin
 from django.core.exceptions import ValidationError
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.utils.translation import ugettext_lazy as _
-from openwisp_utils.admin import MultitenantOrgFilter, TimeReadonlyAdminMixin
 from leaflet.admin import LeafletGeoAdmin
 
+from openwisp_utils.admin import MultitenantOrgFilter, TimeReadonlyAdminMixin
+
 from ..admin import MultitenantAdminMixin
-from ..config.admin import DeviceAdmin as BaseDeviceAdmin, ConfigInline
+from ..config.admin import DeviceAdmin as BaseDeviceAdmin
+from ..config.admin import ConfigInline
 from ..config.models import Device
-from .models import Location, FloorPlan, DeviceLocation
-from .widgets import ImageWidget
 from .fields import GeometryField
+from .models import DeviceLocation, FloorPlan, Location
+from .widgets import ImageWidget
 
 
 class LocationAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, LeafletGeoAdmin):
     list_display = ('name', 'created', 'modified')
     list_filter = [('organization', MultitenantOrgFilter), ]
     list_select_related = ('organization',)
+
+    def get_urls(self):
+        return [
+            url(r'^(?P<pk>[^/]+)/json/$',
+                self.admin_site.admin_view(self.json_view),
+                name='geo_location_json')
+        ] + super(LocationAdmin, self).get_urls()
+
+    def json_view(self, request, pk):
+        instance = get_object_or_404(self.model, pk=pk)
+        return JsonResponse({
+            "name": instance.name,
+            "address": instance.address,
+            "geometry": json.loads(instance.geometry.json)
+        })
 
 
 class FloorForm(forms.ModelForm):
@@ -79,7 +100,6 @@ class DeviceLocationForm(forms.ModelForm):
     def clean(self):
         data = self.cleaned_data
         type_ = data['type']
-        location_selection = data['location_selection']
         msg = _('%(field)s is required for locations of type %(type)s')
         if type_ in ['outdoor', 'indoor'] and not data['location']:
             for field in ['name', 'address', 'geometry']:
@@ -115,6 +135,7 @@ class DeviceLocationInline(TimeReadonlyAdminMixin, admin.StackedInline):
     verbose_name = _('geographic information')
     verbose_name_plural = verbose_name
     raw_id_fields = ('location',)
+    template = 'geo/admin/location_inline.html'
     fieldsets = (
         (None, {'fields': ('type',)}),
         ('Geographic coordinates', {
@@ -126,8 +147,7 @@ class DeviceLocationInline(TimeReadonlyAdminMixin, admin.StackedInline):
             'classes': ('indoor', 'coords'),
             'fields': ('floorplan_selection', 'floorplan',
                        'floor', 'image', 'indoor',),
-        }),
-        (None, {'fields': ('created', 'modified')}),
+        })
     )
 
 
