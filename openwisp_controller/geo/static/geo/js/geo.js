@@ -78,6 +78,7 @@ django.jQuery(function($) {
         var url = getLocationJsonUrl($location.val());
         $.getJSON(url, function(data){
             $('.field-name input', '.geo.coords').val(data.name);
+            $('.field-location .item-label', '.geo.coords').text(data.name);
             $('.field-address input', '.geo.coords').val(data.address);
             $('.field-geometry textarea', '.geo.coords').val(JSON.stringify(data.geometry));
             getMap().remove();

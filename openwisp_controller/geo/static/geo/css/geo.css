@@ -1,5 +1,18 @@
 .coords, .coords .form-row{ display: none }
 .coords .field-location_selection{ display: block }
+.coords .field-location input[type=text]{ display: none }
+.coords .field-location .related-lookup{
+    width: auto;
+    padding-left: 20px;
+    background-position: left center;
+}
+.coords .field-location .item-label{
+    display: inline-block;
+    height: 16px;
+    vertical-align: middle;
+    font-weight: bold;
+    margin-left: 6px;
+}
 .coords input[type=text]{ width: 320px }
 /* simulate required fields */
 .coords.geo label{
