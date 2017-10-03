@@ -1,3 +1,8 @@
+/*
+this JS is shared between:
+    - DeviceLocationForm
+    - LocationForm
+*/
 django.jQuery(function($) {
     var $outdoor = $('.geo.coords'),
         $indoor = $('.indoor.coords'),
@@ -5,13 +10,21 @@ django.jQuery(function($) {
         $geoRows = $('.geo.coords .form-row:not(.field-location_selection)'),
         $geoEdit = $('.field-name, .field-address, .field-geometry', '.geo.coords'),
         $geoSelection = $('.field-location', '.geo.coords'),
-        geometryId = $('.geo.coords .field-geometry label').attr('for'),
+        geometryId = $('.field-geometry label').attr('for'),
         mapName = 'leafletmap' + geometryId + '-map',
         loadMapName = 'loadmap' + geometryId + '-map',
         $type = $('.inline-group .field-type select'),
         $locationSelection = $('.geo.coords .field-location_selection select'),
-        $location = $('select, input', '.geo.coords .field-location'),
-        baseLocationJsonUrl = $('#geo-location-json-url').attr('data-url');
+        $locationSelectionRow = $locationSelection.parents('.form-row'),
+        $location = $('select, input', '.field-location'),
+        $locationLabel = $('.field-location .item-label'),
+        $name = $('.field-name input', '.geo.coords'),
+        $address = $('.field-address input', '.geo.coords'),
+        $geometryTextarea = $('.field-geometry textarea'),
+        baseLocationJsonUrl = $('#geo-location-json-url').attr('data-url'),
+        $geometryRow = $geometryTextarea.parents('.form-row'),
+        msg = gettext('Location data not received yet'),
+        $noLocationDiv = $('.no-location', '.geo.coords');
 
     function getLocationJsonUrl(pk) {
         return baseLocationJsonUrl.replace('0000', pk)
@@ -27,9 +40,28 @@ django.jQuery(function($) {
         return map;
     }
 
-    function typeChange() {
+    function resetDeviceLocationForm(keepLocationSelection) {
+        $locationSelectionRow.show();
+        if (!keepLocationSelection) {
+            $locationSelection.val('');
+        }
+        $location.val('');
+        $locationLabel.text('');
+        $name.val('');
+        $address.val('');
+        $geometryTextarea.val('');
+        $geoEdit.hide();
+        $geoSelection.hide();
+        $locationSelection.show();
+        $noLocationDiv.hide();
+    }
+
+    function typeChange(e, initial) {
         var value = $type.val();
         $allSections.hide();
+        if (!initial) {
+            resetDeviceLocationForm();
+        }
         if (value == 'outdoor') {
             $outdoor.show();
         }
@@ -39,9 +71,12 @@ django.jQuery(function($) {
         }
     }
 
-    function locationSelectionChange() {
+    function locationSelectionChange(e, initial) {
         var value = $locationSelection.val();
         $geoRows.hide();
+        if (!initial) {
+            resetDeviceLocationForm(true);
+        }
         if (value == 'new') {
             $geoEdit.show();
         }
@@ -69,28 +104,59 @@ django.jQuery(function($) {
     }
 
     $type.change(typeChange);
-    typeChange();
+    typeChange(null, true);
 
     $locationSelection.change(locationSelectionChange);
-    locationSelectionChange();
+    locationSelectionChange(null, true);
 
     $location.change(function(){
         var url = getLocationJsonUrl($location.val());
         $.getJSON(url, function(data){
-            $('.field-name input', '.geo.coords').val(data.name);
-            $('.field-location .item-label', '.geo.coords').text(data.name);
-            $('.field-address input', '.geo.coords').val(data.address);
-            $('.field-geometry textarea', '.geo.coords').val(JSON.stringify(data.geometry));
+            $locationLabel.text(data.name);
+            $name.val(data.name);
+            $address.val(data.address);
+            $geometryTextarea.val(JSON.stringify(data.geometry));
             getMap().remove();
             $geoEdit.show();
             window[loadMapName]();
         });
     });
 
+    // websocket for mobile coords
+    function listenForLocationUpdates(pk) {
+        ws = new WebSocket('ws://' + window.location.host + '/geo/mobile-location/' + pk + '/');
+        ws.onmessage = function(e) {
+            $geometryRow.show();
+            $noLocationDiv.hide();
+            $geometryTextarea.val(e.data);
+            getMap().remove();
+            window[loadMapName]();
+        }
+    }
+
     // show existing location
     if ($location.val()) {
-        $locationSelection.parents('.form-row').hide();
+        $locationSelectionRow.hide();
         $geoSelection.hide();
         $geoEdit.show();
+    }
+    // show mobile map (hide not relevant fields)
+    if($type.val() == 'mobile') {
+        $outdoor.show();
+        $locationSelection.parents('.form-row').hide();
+        $geoSelection.hide();
+        $name.parents('.form-row').hide();
+        $address.parents('.form-row').hide();
+        // if no location data yet
+        if (!$geometryTextarea.val()) {
+            $geometryRow.hide()
+            $geometryRow.parent().append('<div class="no-location">' + msg + '</div>');
+            $noLocationDiv = $('.no-location', '.geo.coords');
+        }
+        listenForLocationUpdates($location.val());
+    }
+    else if(!$type.length){
+        var pk = window.location.pathname.split('/').slice('-3', '-2')[0];
+        listenForLocationUpdates(pk);
     }
 });

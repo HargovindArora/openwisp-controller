@@ -42,6 +42,11 @@ INSTALLED_APPS = [
     'sortedm2m',
     'reversion',
     'leaflet',
+    # rest framework
+    'rest_framework',
+    'rest_framework_gis',
+    # channels
+    'channels'
 ]
 
 EXTENDED_APPS = ('django_netjsonconfig', 'django_x509')
@@ -66,6 +71,14 @@ MIDDLEWARE_CLASSES = [
 ]
 
 ROOT_URLCONF = 'urls'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "asgiref.inmemory.ChannelLayer",
+        "ROUTING": "openwisp_controller.geo.channels.routing.channel_routing",
+    },
+}
+
 
 TIME_ZONE = 'Europe/Rome'
 LANGUAGE_CODE = 'en-gb'

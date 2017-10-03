@@ -20,10 +20,23 @@ from .models import DeviceLocation, FloorPlan, Location
 from .widgets import ImageWidget
 
 
+class LocationForm(forms.ModelForm):
+    class Meta:
+        model = Location
+        exclude = tuple()
+
+    class Media:
+        js = ('geo/js/geo.js',)
+        css = {'all': ('geo/css/geo.css',)}
+
+
 class LocationAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, LeafletGeoAdmin):
-    list_display = ('name', 'created', 'modified')
+    list_display = ('name', 'organization', 'created', 'modified')
     list_filter = [('organization', MultitenantOrgFilter), ]
     list_select_related = ('organization',)
+    search_fields = ('name', 'address')
+    save_on_top = True
+    form = LocationForm
 
     def get_urls(self):
         return [
@@ -47,11 +60,16 @@ class FloorForm(forms.ModelForm):
         exclude = tuple()
         widgets = {'image': ImageWidget()}
 
+    class Media:
+        css = {'all': ('geo/css/geo.css',)}
 
-class FloorAdmin(TimeReadonlyAdminMixin, admin.ModelAdmin):
-    list_display = ('location', 'floor', 'name', 'created', 'modified')
-    list_select_related = ('location',)
+
+class FloorAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'organization', 'floor', 'created', 'modified')
+    list_select_related = ('location', 'organization')
     search_fields = ('location__name', 'name')
+    raw_id_fields = ('location',)
+    save_on_top = True
     form = FloorForm
 
 
@@ -61,8 +79,7 @@ class DeviceLocationForm(forms.ModelForm):
         ('new', _('New')),
         ('existing', _('Existing'))
     )
-    location_selection = forms.ChoiceField(required=True,
-                                           choices=CHOICES)
+    location_selection = forms.ChoiceField(choices=CHOICES, required=False)
     name = forms.CharField(label=_('Location name'),
                            max_length=75, required=False,
                            help_text=_('Descriptive name of the location '
@@ -100,13 +117,20 @@ class DeviceLocationForm(forms.ModelForm):
     def clean(self):
         data = self.cleaned_data
         type_ = data['type']
-        msg = _('%(field)s is required for locations of type %(type)s')
+        msg = _('this field is required for locations of type %(type)s')
         if type_ in ['outdoor', 'indoor'] and not data['location']:
-            for field in ['name', 'address', 'geometry']:
+            for field in ['location_selection', 'name', 'address', 'geometry']:
                 if not self.cleaned_data[field]:
-                    params = {'field': field, 'type': type_}
+                    params = {'type': type_}
                     err = ValidationError(msg, params=params)
                     self.add_error(field, err)
+        elif type_ == 'mobile' and not self.instance.location:
+            data['name'] = self.instance.device.name
+            data['address'] = ''
+            data['geometry'] = ''
+            data['location_selection'] = 'new'
+        elif type_ == 'mobile' and self.instance.location:
+            data['location_selection'] = 'existing'
 
     def save(self, commit=True):
         instance = self.instance
@@ -132,10 +156,11 @@ class DeviceLocationInline(TimeReadonlyAdminMixin, admin.StackedInline):
     model = DeviceLocation
     form = DeviceLocationForm
     extra = 1
+    max_num = 1
     verbose_name = _('geographic information')
     verbose_name_plural = verbose_name
     raw_id_fields = ('location',)
-    template = 'geo/admin/location_inline.html'
+    template = 'admin/geo/location_inline.html'
     fieldsets = (
         (None, {'fields': ('type',)}),
         ('Geographic coordinates', {

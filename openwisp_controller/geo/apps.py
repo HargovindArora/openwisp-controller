@@ -8,3 +8,4 @@ class GeoConfig(AppConfig):
     def ready(self):
         import leaflet
         leaflet.app_settings['NO_GLOBALS'] = False
+        from .channels import receivers  # noqa

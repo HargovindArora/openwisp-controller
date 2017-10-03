@@ -3,3 +3,5 @@ openwisp-utils[users]<0.2
 # geo
 #TODO: pin versions
 django-leaflet
+djangorestframework-gis
+channels

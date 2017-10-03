@@ -1,21 +1,34 @@
 .coords, .coords .form-row{ display: none }
 .coords .field-location_selection{ display: block }
+/* improve raw_id_field look */
 .coords .field-location input[type=text]{ display: none }
-.coords .field-location .related-lookup{
+.field-location .related-lookup{
     width: auto;
     padding-left: 20px;
     background-position: left center;
 }
-.coords .field-location .item-label{
+.field-location .item-label{
     display: inline-block;
     height: 16px;
     vertical-align: middle;
     font-weight: bold;
     margin-left: 6px;
 }
-.coords input[type=text]{ width: 320px }
+.coords .field-location .related-lookup,
+.coords .field-location .item-label{
+    position: relative;
+    bottom: -3px;
+}
+.coords .field-location strong{ display: none }
+input[type=text]{ width: 320px }
 /* simulate required fields */
 .coords.geo label{
     font-weight: bold;
     color: #333;
+}
+.no-location{
+    padding: 20px 0 0;
+    font-weight: bold;
+    text-align: center;
+    font-size: 14px;
 }
