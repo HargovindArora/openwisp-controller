@@ -17,7 +17,7 @@ from ..config.admin import ConfigInline
 from ..config.models import Device
 from .fields import GeometryField
 from .models import DeviceLocation, FloorPlan, Location
-from .widgets import ImageWidget
+from .widgets import ImageWidget, FloorPlanWidget
 
 
 class LocationForm(forms.ModelForm):
@@ -48,9 +48,9 @@ class LocationAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, LeafletGeoAdm
     def json_view(self, request, pk):
         instance = get_object_or_404(self.model, pk=pk)
         return JsonResponse({
-            "name": instance.name,
-            "address": instance.address,
-            "geometry": json.loads(instance.geometry.json)
+            'name': instance.name,
+            'address': instance.address,
+            'geometry': json.loads(instance.geometry.json)
         })
 
 
@@ -90,7 +90,11 @@ class DeviceLocationForm(forms.ModelForm):
                                             choices=CHOICES)
     floor = forms.IntegerField(required=False)
     image = forms.ImageField(required=False,
+                             widget=ImageWidget(thumbnail=False),
                              help_text=_('floor plan image'))
+    indoor = forms.CharField(max_length=64, required=False,
+                             label=_('indoor position'),
+                             widget=FloorPlanWidget)
 
     class Meta:
         model = DeviceLocation
@@ -104,13 +108,21 @@ class DeviceLocationForm(forms.ModelForm):
         super(DeviceLocationForm, self).__init__(*args, **kwargs)
         # set initial values for custom fields
         initial = {}
-        location = self.instance.location
+        obj = self.instance
+        location = obj.location
+        floorplan = obj.floorplan
         if location:
             initial.update({
                 'location_selection': 'existing',
                 'name': location.name,
                 'address': location.address,
                 'geometry': location.geometry,
+            })
+        if floorplan:
+            initial.update({
+                'floorplan_selection': 'existing',
+                'floor': floorplan.floor,
+                'image': floorplan.image
             })
         self.initial.update(initial)
 
@@ -120,7 +132,13 @@ class DeviceLocationForm(forms.ModelForm):
         msg = _('this field is required for locations of type %(type)s')
         if type_ in ['outdoor', 'indoor'] and not data['location']:
             for field in ['location_selection', 'name', 'address', 'geometry']:
-                if not self.cleaned_data[field]:
+                if field in data and not data[field]:
+                    params = {'type': type_}
+                    err = ValidationError(msg, params=params)
+                    self.add_error(field, err)
+        if type_ == 'indoor' and not data['floorplan']:
+            for field in ['floorplan_selection', 'floor', 'image']:
+                if field in data and not data[field]:
                     params = {'type': type_}
                     err = ValidationError(msg, params=params)
                     self.add_error(field, err)
@@ -148,6 +166,17 @@ class DeviceLocationForm(forms.ModelForm):
             instance.location.address = data['address'] or instance.location.address
             instance.location.geometry = data['geometry'] or instance.location.geometry
             instance.location.save()
+        if data['type'] == 'indoor' and not instance.floorplan:
+            instance.floorplan = FloorPlan.objects.create(
+                organization=instance.device.organization,
+                location=instance.location,
+                floor=data['floor'],
+                image=data['image']
+            )
+        elif data['type'] == 'indoor':
+            instance.floorplan.floor = data['floor'] or instance.floorplan.floor
+            instance.floorplan.image = data['image'] or instance.location.image
+            instance.floorplan.save()
         # call super
         return super(DeviceLocationForm, self).save(commit=True)
 
