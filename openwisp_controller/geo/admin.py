@@ -42,7 +42,10 @@ class LocationAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, LeafletGeoAdm
         return [
             url(r'^(?P<pk>[^/]+)/json/$',
                 self.admin_site.admin_view(self.json_view),
-                name='geo_location_json')
+                name='geo_location_json'),
+            url(r'^(?P<pk>[^/]+)/floorplans/json/$',
+                self.admin_site.admin_view(self.floorplans_json_view),
+                name='geo_location_floorplans_json')
         ] + super(LocationAdmin, self).get_urls()
 
     def json_view(self, request, pk):
@@ -52,6 +55,21 @@ class LocationAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, LeafletGeoAdm
             'address': instance.address,
             'geometry': json.loads(instance.geometry.json)
         })
+
+    def floorplans_json_view(self, request, pk):
+        instance = get_object_or_404(self.model, pk=pk)
+        choices = []
+        for floorplan in instance.floorplan_set.all():
+            #import pdb; pdb.set_trace()
+            choices.append({
+                'id': floorplan.pk,
+                'str': str(floorplan),
+                'floor': floorplan.floor,
+                'image': floorplan.image.url,
+                'image_width': floorplan.image.width,
+                'image_height': floorplan.image.height,
+            })
+        return JsonResponse({'choices': choices})
 
 
 class FloorForm(forms.ModelForm):
@@ -65,17 +83,32 @@ class FloorForm(forms.ModelForm):
 
 
 class FloorAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'organization', 'floor', 'created', 'modified')
+    list_display = ('__str__', 'location', 'floor', 'organization',
+                    'created', 'modified')
     list_select_related = ('location', 'organization')
     search_fields = ('location__name', 'name')
+    list_filter = [('organization', MultitenantOrgFilter), ]
     raw_id_fields = ('location',)
     save_on_top = True
     form = FloorForm
 
 
+class SpecialChoiceField(forms.ChoiceField):
+    def validate(self, value):
+        super(forms.ChoiceField, self).validate(value)
+
+    # def __init__(self, *args, **kwargs):
+    #     import pdb; pdb.set_trace()
+    #     super().__init__(*args, **kwargs)
+
+    # def _get_choices(self):
+    #     import pdb; pdb.set_trace()
+    #     return self._choices
+
+
 class DeviceLocationForm(forms.ModelForm):
     CHOICES = (
-        ('', _('Please select one choice')),
+        ('', _('Please select an option')),
         ('new', _('New')),
         ('existing', _('Existing'))
     )
@@ -88,6 +121,8 @@ class DeviceLocationForm(forms.ModelForm):
     geometry = GeometryField(required=False)
     floorplan_selection = forms.ChoiceField(required=False,
                                             choices=CHOICES)
+    floorplan = SpecialChoiceField(choices=((None, CHOICES[0][1]),),
+                                   required=False)
     floor = forms.IntegerField(required=False)
     image = forms.ImageField(required=False,
                              widget=ImageWidget(thumbnail=False),
@@ -121,10 +156,32 @@ class DeviceLocationForm(forms.ModelForm):
         if floorplan:
             initial.update({
                 'floorplan_selection': 'existing',
+                'floorplan': floorplan.pk,
                 'floor': floorplan.floor,
                 'image': floorplan.image
             })
+            floorplan_choices = self.fields['floorplan'].choices
+            self.fields['floorplan'].choices = floorplan_choices + [(floorplan.pk, floorplan.name)]
+            # import pdb; pdb.set_trace()
+            # self.fields['floorplan'].choices =
         self.initial.update(initial)
+
+    #def full_clean(self):
+    #    super(DeviceLocationForm, self).full_clean()
+    #    import pdb; pdb.set_trace()
+    #    print('ciao')
+
+    def clean_floorplan(self):
+        if self.cleaned_data['floorplan_selection'] == 'new':
+            return None
+        pk = self.cleaned_data['floorplan']
+        if not pk:
+            raise ValidationError(_('Invalid selection'))
+        try:
+            return FloorPlan.objects.get(pk=pk)
+        except FloorPlan.DoesNotExist as e:
+            pass
+        # TODO maybe here we can call the model validation logic
 
     def clean(self):
         data = self.cleaned_data
@@ -136,8 +193,13 @@ class DeviceLocationForm(forms.ModelForm):
                     params = {'type': type_}
                     err = ValidationError(msg, params=params)
                     self.add_error(field, err)
-        if type_ == 'indoor' and not data['floorplan']:
-            for field in ['floorplan_selection', 'floor', 'image']:
+        if type_ == 'indoor':
+            fields = ['floorplan_selection', 'floor', 'indoor']
+            if data.get('floorplan_selection') == 'existing':
+                fields.append('floorplan')
+            elif data.get('floorplan_selection') == 'new':
+                fields.append('image')
+            for field in fields:
                 if field in data and not data[field]:
                     params = {'type': type_}
                     err = ValidationError(msg, params=params)
@@ -174,8 +236,15 @@ class DeviceLocationForm(forms.ModelForm):
                 image=data['image']
             )
         elif data['type'] == 'indoor':
+            # import pdb; pdb.set_trace()
             instance.floorplan.floor = data['floor'] or instance.floorplan.floor
-            instance.floorplan.image = data['image'] or instance.location.image
+            # this is tricky: the image path is changed
+            # with the current data only if different
+            # than the initial value
+            # this also allows changing the floorplan
+            # without changing the image
+            if self.initial.get('image') != data.get('image'):
+                instance.floorplan.image = data['image']
             instance.floorplan.save()
         # call super
         return super(DeviceLocationForm, self).save(commit=True)

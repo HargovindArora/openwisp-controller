@@ -1,4 +1,5 @@
 from django.contrib.gis.db import models
+from django.core.exceptions import ValidationError
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 
@@ -45,6 +46,7 @@ class DeviceLocation(TimeStampedEditableModel):
         ('indoor', _('Indoor')),
         ('mobile', _('Mobile')),
     )
+    # OneToOne or not? YES!
     device = models.ForeignKey('config.Device')
     type = models.CharField(choices=LOCATION_TYPES, max_length=8)
     location = models.ForeignKey('geo.Location', models.PROTECT,
@@ -54,6 +56,10 @@ class DeviceLocation(TimeStampedEditableModel):
     # TODO: is 64 char maxlength ok?
     indoor = models.CharField(_('indoor position'), max_length=64,
                               blank=True, null=True)
+
+    def _clean_location(self):
+        if self.type == 'indoor' and self.location != self.floorplan.location:
+            raise ValidationError(_('Unexpected floorplan selected'))
 
     def delete(self, *args, **kwargs):
         delete_location = False

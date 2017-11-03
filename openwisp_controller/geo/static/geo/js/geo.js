@@ -25,6 +25,7 @@ django.jQuery(function ($) {
         $address = $('.field-address input', '.geo.coords'),
         $geometryTextarea = $('.field-geometry textarea'),
         baseLocationJsonUrl = $('#geo-location-json-url').attr('data-url'),
+        baseLocationFloorplansJsonUrl = $('#geo-location-floorplans-json-url').attr('data-url'),
         $geometryRow = $geometryTextarea.parents('.form-row'),
         msg = gettext('Location data not received yet'),
         $noLocationDiv = $('.no-location', '.geo.coords'),
@@ -37,6 +38,10 @@ django.jQuery(function ($) {
 
     function getLocationJsonUrl(pk) {
         return baseLocationJsonUrl.replace('0000', pk);
+    }
+
+    function getLocationFloorplansJsonUrl(pk) {
+        return baseLocationFloorplansJsonUrl.replace('0000', pk);
     }
 
     function getMap() {
@@ -124,6 +129,10 @@ django.jQuery(function ($) {
         if (value === 'new') {
             indoorForm(value);
         }
+        // TODO: && !$floorplan.val()
+        if (value === 'existing') {
+            $floorplanRow.show();
+        }
     }
 
     // HACK to override `dismissRelatedLookupPopup()` and
@@ -149,22 +158,74 @@ django.jQuery(function ($) {
     $locationSelection.change(locationSelectionChange);
     locationSelectionChange(null, true);
 
-    $location.change(function () {
+    function locationChange() {
         var url = getLocationJsonUrl($location.val());
         $.getJSON(url, function (data) {
             $locationLabel.text(data.name);
             $name.val(data.name);
             $address.val(data.address);
             $geometryTextarea.val(JSON.stringify(data.geometry));
-            getMap().remove();
+            var map = getMap();
+            if (map) { map.remove(); }
             $geoEdit.show();
             window[loadMapName]();
         });
         indoorForm();
-    });
+        if ($type.val() === 'indoor') {
+            var floorplansUrl = getLocationFloorplansJsonUrl($location.val());
+            $.getJSON(floorplansUrl, function (data) {
+                var $current = $floorplan.find('option:selected'),
+                    currentValue = $current.val();
+                $floorplan.find('option[value!=""]').remove();
+                $(data.choices).each(function (i, el) {
+                    var o = $('<option></option>').attr('value', el.id)
+                                                  .text(el.str)
+                                                  .data('floor', el.floor)
+                                                  .data('image', el.image)
+                                                  .data('image_width', el.image_width)
+                                                  .data('image_height', el.image_height);
+                    if (el.id === currentValue) {
+                        o.attr('selected', 'selected');
+                    }
+                    $floorplan.append(o);
+                });
+            });
+        }
+    }
+
+    $location.change(locationChange);
+    locationChange();
 
     $floorplanSelection.change(floorplanSelectionChange);
     floorplanSelectionChange();
+
+    $floorplan.change(function () {
+        if (!$floorplan.val()) { return; }
+        var option = $floorplan.find('option:selected'),
+            widgetName = $floorplanMap.parents('.field-indoor')
+                                      .find('.floorplan-widget')
+                                      .attr('id')
+                                      .replace('id_', '')
+                                      .replace('_map', ''),
+            globalName = 'django-loci-floorplan-' + widgetName,
+            image = option.data('image'),
+            $a = $indoor.find('.field-image a'),
+            $aText = $a.text(),
+            $aNewText = $aText.split(': ')[0] + ': ' + image.split('/').slice(-1);
+        $indoor.find('.field-floor input').val(option.data('floor'));
+        $indoor.find('.form-row :not(.field-floorplan_selection)').show();
+        $a.attr('href', image).text($aNewText);
+        // remove previous indoor map if present
+        if (window[globalName]) {
+            window[globalName].remove();
+        }
+        window[globalName] = django.loadFloorPlan(
+            widgetName,
+            image,
+            option.data('image_width'),
+            option.data('image_height')
+        );
+    });
 
     $floorplanImage.change(function () {
         var input = this,
@@ -239,6 +300,9 @@ django.jQuery(function ($) {
         $indoor.show();
         $indoorRows.show();
         $floorplanSelectionRow.hide();
-        $floorplanRow.hide();
+    // adding indoor
+    } else if ($type.val() === 'indoor') {
+        $indoor.show();
+        $indoorRows.show();
     }
 });
