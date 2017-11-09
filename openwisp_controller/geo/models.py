@@ -46,8 +46,7 @@ class DeviceLocation(TimeStampedEditableModel):
         ('indoor', _('Indoor')),
         ('mobile', _('Mobile')),
     )
-    # OneToOne or not? YES!
-    device = models.ForeignKey('config.Device')
+    device = models.OneToOneField('config.Device')
     type = models.CharField(choices=LOCATION_TYPES, max_length=8)
     location = models.ForeignKey('geo.Location', models.PROTECT,
                                  blank=True, null=True)

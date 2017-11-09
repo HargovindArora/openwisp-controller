@@ -60,7 +60,6 @@ class LocationAdmin(MultitenantAdminMixin, TimeReadonlyAdminMixin, LeafletGeoAdm
         instance = get_object_or_404(self.model, pk=pk)
         choices = []
         for floorplan in instance.floorplan_set.all():
-            #import pdb; pdb.set_trace()
             choices.append({
                 'id': floorplan.pk,
                 'str': str(floorplan),
@@ -253,8 +252,6 @@ class DeviceLocationForm(forms.ModelForm):
 class DeviceLocationInline(TimeReadonlyAdminMixin, admin.StackedInline):
     model = DeviceLocation
     form = DeviceLocationForm
-    extra = 1
-    max_num = 1
     verbose_name = _('geographic information')
     verbose_name_plural = verbose_name
     raw_id_fields = ('location',)
