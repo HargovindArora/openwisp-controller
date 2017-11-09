@@ -213,7 +213,7 @@ django.jQuery(function ($) {
             $aText = $a.text(),
             $aNewText = $aText.split(': ')[0] + ': ' + image.split('/').slice(-1);
         $indoor.find('.field-floor input').val(option.data('floor'));
-        $indoor.find('.form-row :not(.field-floorplan_selection)').show();
+        $indoor.find('.form-row:not(.field-floorplan_selection)').show();
         $a.attr('href', image).text($aNewText);
         // remove previous indoor map if present
         if (window[globalName]) {
