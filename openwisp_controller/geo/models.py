@@ -30,6 +30,9 @@ class FloorPlan(OrgMixin, TimeStampedEditableModel):
     name = models.CharField(_('name'), db_index=True,
                             max_length=32, blank=True)
 
+    class Meta:
+        unique_together = ('location', 'floor')
+
     def __str__(self):
         if self.name:
             return self.name
