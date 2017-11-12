@@ -22,7 +22,6 @@
     bottom: -3px;
 }
 .field-location strong{ margin-left: 3px }
-.coords .field-location strong{ display: none }
 input[type=text]{ width: 320px }
 /* simulate required fields */
 .coords.geo label{

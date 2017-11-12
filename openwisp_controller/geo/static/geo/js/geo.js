@@ -32,7 +32,7 @@ django.jQuery(function ($) {
         $floorplanSelectionRow = $('.indoor.coords .field-floorplan_selection'),
         $floorplanSelection = $floorplanSelectionRow.find('select'),
         $floorplanRow = $('.indoor .field-floorplan'),
-        $floorplan = $floorplanRow.find('select'),
+        $floorplan = $floorplanRow.find('select').eq(0),
         $floorplanImage = $('.indoor.coords .field-image input'),
         $floorplanMap = $('.indoor.coords .floorplan-widget');
 
@@ -125,13 +125,18 @@ django.jQuery(function ($) {
     }
 
     function floorplanSelectionChange() {
-        var value = $floorplanSelection.val();
+        var value = $floorplanSelection.val(),
+            optionsLength = $floorplan.find('option').length;
         if (value === 'new') {
             indoorForm(value);
         }
-        // TODO: && !$floorplan.val()
-        if (value === 'existing') {
+        if (value === 'existing' && optionsLength > 1) {
             $floorplanRow.show();
+        }
+        // if no floorplan available, make it obvious
+        else if (value === 'existing' && optionsLength <= 1) {
+            alert(gettext('This location has no floorplans available yet'));
+            $floorplanSelection.val('');
         }
     }
 
@@ -274,7 +279,6 @@ django.jQuery(function ($) {
     // show existing location
     if ($location.val()) {
         $locationSelectionRow.hide();
-        $locationRow.hide();
         $geoEdit.show();
     }
     // show mobile map (hide not relevant fields)
